@@ -1,0 +1,61 @@
+#include <Wire.h>
+#include <VL53L0X.h>
+
+VL53L0X sensor;
+
+float filtered = 0;
+float alpha = 0.2;
+float lastFiltered = 0;
+
+unsigned long lastTime = 0;
+
+void setup() {
+  Serial.begin(115200);
+  Wire.begin();
+
+  if (!sensor.init()) {
+    while(1) {
+      Serial.println("0 0 0");
+      delay(100);
+    }
+  }
+
+  sensor.setTimeout(100);
+  sensor.startContinuous();
+
+  delay(100);
+  lastTime = millis();
+}
+
+void loop() {
+  uint16_t distance = sensor.readRangeContinuousMillimeters();
+
+  if (sensor.timeoutOccurred()) {
+    Serial.println("0 0 0");
+    return;
+  }
+
+  filtered = (1 - alpha) * filtered + alpha * distance;
+
+  unsigned long currentTime = millis();
+  float dt = (currentTime - lastTime) / 1000.0;
+  float velocity = 0;
+
+  if (dt > 0) {
+    velocity = (filtered - lastFiltered) / dt;
+  }
+
+  lastFiltered = filtered;
+  lastTime = currentTime;
+  
+  Serial.print("Raw:");
+  Serial.print(distance);
+  Serial.print(" ");
+  Serial.print("Filtered:");
+  Serial.print(filtered);
+  Serial.print(" ");
+  Serial.print("Velocity:");
+  Serial.println(velocity);
+
+  delay(20);
+}
